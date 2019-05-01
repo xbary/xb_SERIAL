@@ -1,6 +1,6 @@
-<?xml version="1.0" encoding ="utf-8" ?>
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" >
-  <PropertyGroup Label="Globals" >
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
     <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
     <HasSharedItems>true</HasSharedItems>
     <ItemsProjectGuid>{6e99703b-28fa-4a1c-b1e2-0b5dca4f5d78}</ItemsProjectGuid>
@@ -20,10 +20,5 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)src\xb_SERIAL.h" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="$(MSBuildThisFileDirectory)library.properties" />
-<Text Include="$(MSBuildThisFileDirectory)vs-readme.txt" />
-  </ItemGroup>
-  <ItemGroup>
-    
   </ItemGroup>
 </Project>
