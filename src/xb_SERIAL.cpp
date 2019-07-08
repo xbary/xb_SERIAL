@@ -21,8 +21,8 @@ uint8_t XB_SERIAL2_UseGET;
 #endif
 
 
-extern "C" void * _sbrk(int);
-extern uint32_t _estack;
+//extern "C" void * _sbrk(int);
+//extern uint32_t _estack;
 
 void XB_SERIAL_Setup()
 {
@@ -213,15 +213,16 @@ bool XB_SERIAL_DoMessage(TMessageBoard *Am)
 						if (av > 0)
 						{
 							int ch = 0;
-							uint8_t count = 0;
+							uint32_t count = 0;
 							while (av > 0)
 							{
 								ch = Serial.read();
 								if (ch >= 0)
 								{
-									((uint8_t *)Am->Data.StreamData.Data)[count] = ch;
+									((uint8_t*)Am->Data.StreamData.Data)[count] = ch;
 									count++;
 								}
+								else break;
 								if (count >= Am->Data.StreamData.Length) break;
 								av = Serial.available();
 							}
