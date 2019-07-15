@@ -1,4 +1,17 @@
+#include <xb_board.h>
+#include <xb_board_def.h>
 #include <xb_SERIAL.h>
+
+#ifdef SerialBluetooth
+#include <BluetoothSerial.h>
+
+#if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
+#error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
+#endif
+
+BluetoothSerial SerialBT;
+#endif
+
 
 bool XB_SERIAL_DoMessage(TMessageBoard *Am);
 void XB_SERIAL_Setup();
@@ -19,10 +32,10 @@ uint8_t XB_SERIAL1_UseGET;
 uint8_t *XB_SERIAL2_RXBuf;
 uint8_t XB_SERIAL2_UseGET;
 #endif
-
-
-//extern "C" void * _sbrk(int);
-//extern uint32_t _estack;
+#ifdef SerialBluetooth
+uint8_t* XB_SERIALBT_RXBuf;
+uint8_t XB_SERIALBT_UseGET;
+#endif
 
 void XB_SERIAL_Setup()
 {
@@ -131,6 +144,25 @@ void XB_SERIAL_Setup()
 #endif	
 
 #endif
+
+#ifdef SerialBluetooth
+	SerialBT.begin(board.DeviceName);
+	XB_SERIALBT_UseGET = 0;
+	XB_SERIALBT_RXBuf = (uint8_t*)board._malloc(SERIALBT_SizeRXBuffer);
+
+#ifdef SerialBTBoard_UseKeyboard 
+	board.BeginUseGetStream(&XB_SERIAL_DefTask, 10);
+	board.AddStreamAddressAsKeyboard(&XB_SERIAL_DefTask, 10);
+#endif
+#ifdef SerialBTBoard_UseLog
+	board.AddStreamAddressAsLog(&XB_SERIAL_DefTask, 10);
+#endif	
+#ifdef SerialBTBoard_UseGui
+	board.AddStreamAddressAsGui(&XB_SERIAL_DefTask, 10);
+#endif	
+
+#endif
+
 	board.Log("Start...");
 	board.Log("OK");
 }
@@ -173,6 +205,18 @@ uint32_t XB_SERIAL_DoLoop()
 		if (XB_SERIAL2_RXBuf != NULL) board.freeandnull((void **)&XB_SERIAL2_RXBuf);
 	}
 #endif
+#ifdef SerialBluetooth
+	if (XB_SERIALBT_UseGET == 0)
+	{
+		if (XB_SERIALBT_RXBuf == NULL) XB_SERIALBT_RXBuf = (uint8_t*)board._malloc(SERIALBT_SizeRXBuffer);
+		int32_t s = board.GetStream(XB_SERIALBT_RXBuf, SERIALBT_SizeRXBuffer, &XB_SERIAL_DefTask, 10);
+		(void)s;
+	}
+	else
+	{
+		if (XB_SERIALBT_RXBuf != NULL) board.freeandnull((void**)& XB_SERIALBT_RXBuf);
+	}
+#endif
 	return 0;
 }
 
@@ -196,6 +240,9 @@ bool XB_SERIAL_DoMessage(TMessageBoard *Am)
 #endif
 #ifdef Serial2Board_BAUD
 			*(Am->Data.PointerString) += ",S2(" + String(Serial2Board_BAUD) + ")";
+#endif
+#ifdef SerialBluetooth
+			*(Am->Data.PointerString) += ",SBT10(" + String(board.DeviceName) + ")";
 #endif
 			res = true;
 			break;
@@ -288,6 +335,37 @@ bool XB_SERIAL_DoMessage(TMessageBoard *Am)
 						break;
 					}
 #endif
+#ifdef SerialBluetooth
+					if (Am->Data.StreamData.FromAddress == 10)
+					{
+						int av = SerialBT.available();
+						if (av > 0)
+						{
+							int ch = 0;
+							uint32_t count = 0;
+							while (av > 0)
+							{
+								ch = SerialBT.read();
+								if (ch >= 0)
+								{
+									((uint8_t*)Am->Data.StreamData.Data)[count] = ch;
+									count++;
+								}
+								else break;
+								if (count >= Am->Data.StreamData.Length) break;
+								av = SerialBT.available();
+							}
+							Am->Data.StreamData.LengthResult = count;
+						}
+						else
+						{
+							Am->Data.StreamData.LengthResult = 0;
+						}
+						res = true;
+						break;
+					}
+#endif
+
 					res = true;
 					break;
 				}
@@ -317,6 +395,14 @@ bool XB_SERIAL_DoMessage(TMessageBoard *Am)
 						break;
 					}
 #endif
+#ifdef SerialBluetooth
+					if (Am->Data.StreamData.ToAddress == 10)
+					{
+						Am->Data.StreamData.LengthResult = SerialBT.write((uint8_t*)Am->Data.StreamData.Data, Am->Data.StreamData.Length);
+						res = true;
+						break;
+					}
+#endif
 					res = true;
 					break;
 				}
@@ -340,6 +426,12 @@ bool XB_SERIAL_DoMessage(TMessageBoard *Am)
 						XB_SERIAL2_UseGET++;
 					}
 #endif
+#ifdef SerialBluetooth
+					if (Am->Data.StreamData.ToAddress == 10)
+					{
+						XB_SERIALBT_UseGET++;
+					}
+#endif
 					res = true;
 					break;
 				}
@@ -361,6 +453,12 @@ bool XB_SERIAL_DoMessage(TMessageBoard *Am)
 					if (Am->Data.StreamData.ToAddress == 2)
 					{
 						if (XB_SERIAL2_UseGET > 0) XB_SERIAL2_UseGET--;
+					}
+#endif
+#ifdef SerialBluetooth
+					if (Am->Data.StreamData.ToAddress == 10)
+					{
+						if (XB_SERIALBT_UseGET > 0) XB_SERIALBT_UseGET--;
 					}
 #endif
 					res = true;

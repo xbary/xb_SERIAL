@@ -6,6 +6,8 @@
 #define SERIAL0_SizeRXBuffer 128
 #define SERIAL1_SizeRXBuffer 128
 #define SERIAL2_SizeRXBuffer 128
+#define SERIALBT_SizeRXBuffer 128
+
 
 extern TTaskDef XB_SERIAL_DefTask;
 
