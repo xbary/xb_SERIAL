@@ -374,7 +374,29 @@ bool XB_SERIAL_DoMessage(TMessageBoard *Am)
 #ifdef Serial0Board_BAUD
 					if (Am->Data.StreamData.ToAddress == 0)
 					{
+						uint32_t last_Length = Am->Data.StreamData.Length;
+						uint8_t *last_Data = (uint8_t*)Am->Data.StreamData.Data;
+						uint32_t tick = SysTickCount;
 						Am->Data.StreamData.LengthResult = Serial.write((uint8_t *)Am->Data.StreamData.Data, Am->Data.StreamData.Length);
+
+						while (Am->Data.StreamData.LengthResult != Am->Data.StreamData.Length)
+						{
+							if (tick - SysTickCount > 1000)
+							{
+
+								break;
+							}
+							Serial.flush(true);
+							uint32_t P = (uint32_t)Am->Data.StreamData.Data;
+							P += Am->Data.StreamData.LengthResult;
+							Am->Data.StreamData.Data = (void *)P;
+							Am->Data.StreamData.Length -= Am->Data.StreamData.LengthResult;
+							
+							Am->Data.StreamData.LengthResult = Serial.write((uint8_t*)Am->Data.StreamData.Data, Am->Data.StreamData.Length);
+						}
+						Am->Data.StreamData.Length = last_Length;
+						Am->Data.StreamData.LengthResult = last_Length;
+						Am->Data.StreamData.Data = (void*)last_Data;
 						res = true;
 						break;
 					}
