@@ -378,12 +378,11 @@ bool XB_SERIAL_DoMessage(TMessageBoard *Am)
 						uint8_t *last_Data = (uint8_t*)Am->Data.StreamData.Data;
 						uint32_t tick = SysTickCount;
 						Am->Data.StreamData.LengthResult = Serial.write((uint8_t *)Am->Data.StreamData.Data, Am->Data.StreamData.Length);
-
+						
 						while (Am->Data.StreamData.LengthResult != Am->Data.StreamData.Length)
 						{
-							if (tick - SysTickCount > 1000)
+							if (SysTickCount - tick > 1000)
 							{
-
 								break;
 							}
 							Serial.flush(true);
@@ -397,6 +396,7 @@ bool XB_SERIAL_DoMessage(TMessageBoard *Am)
 						Am->Data.StreamData.Length = last_Length;
 						Am->Data.StreamData.LengthResult = last_Length;
 						Am->Data.StreamData.Data = (void*)last_Data;
+						Serial.flush(true);
 						res = true;
 						break;
 					}
