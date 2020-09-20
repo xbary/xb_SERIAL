@@ -1,6 +1,9 @@
 #include <xb_board.h>
 #include <xb_board_def.h>
 #include <xb_SERIAL.h>
+#ifdef XB_GUI
+#include <xb_GUI.h>
+#endif
 
 #ifdef SerialBluetooth
 #include <BluetoothSerial.h>
@@ -17,13 +20,20 @@ bool XB_SERIAL_DoMessage(TMessageBoard *Am);
 void XB_SERIAL_Setup();
 uint32_t XB_SERIAL_DoLoop();
 
-TTaskDef XB_SERIAL_DefTask = { 1, &XB_SERIAL_Setup, &XB_SERIAL_DoLoop, &XB_SERIAL_DoMessage };
+TTaskDef XB_SERIAL_DefTask = {0, &XB_SERIAL_Setup, &XB_SERIAL_DoLoop, &XB_SERIAL_DoMessage };
 
 
 #ifdef Serial0Board_BAUD
 uint8_t *XB_SERIAL0_RXBuf;
 uint8_t XB_SERIAL0_UseGET;
 #endif
+#ifdef Serial0BoardBuf_BAUD
+TBuf XB_SERIAL0_RXBuf;
+TBuf XB_SERIAL0_TXBuf;
+uint8_t XB_SERIAL0_UseGET;
+bool XB_SERIAL0_DisableTX;
+#endif
+
 #ifdef Serial1Board_BAUD
 uint8_t *XB_SERIAL1_RXBuf;
 uint8_t XB_SERIAL1_UseGET;
@@ -73,6 +83,45 @@ void XB_SERIAL_Setup()
 #endif	
 
 #endif
+
+#ifdef Serial0BoardBuf_BAUD
+
+#ifndef __riscv64
+#if defined(Serial0Board_RX_PIN) && defined(Serial0Board_TX_PIN)
+	Serial.begin(Serial0BoardBuf_BAUD, SERIAL_8N1, Serial0Board_RX_PIN, Serial0Board_TX_PIN);
+#else
+	Serial.begin(Serial0BoardBuf_BAUD, SERIAL_8N1);
+#endif
+#else
+	Serial.begin(Serial0BoardBuf_BAUD);
+#endif
+	XB_SERIAL0_UseGET = 0;
+	XB_SERIAL0_RXBuf.SectorSize = 32;
+	XB_SERIAL0_TXBuf.SectorSize = 512;
+	XB_SERIAL0_TXBuf.AlarmMaxLength = 4096;
+	XB_SERIAL0_DisableTX = true;
+
+#if defined(ESP32) || defined(ESP8266)
+#ifdef Serial0Board_UseDebugOutPut
+	Serial.setDebugOutput(true);
+#else
+	Serial.setDebugOutput(false);
+#endif
+#endif
+
+#ifdef Serial0BoardBuf_UseKeyboard 
+	board.BeginUseGetStream(&XB_SERIAL_DefTask, 0);
+	board.AddStreamAddressAsKeyboard(&XB_SERIAL_DefTask, 0);
+#endif
+#ifdef Serial0BoardBuf_UseLog
+	board.AddStreamAddressAsLog(&XB_SERIAL_DefTask, 0);
+#endif	
+#ifdef Serial0BoardBuf_UseGui
+	board.AddStreamAddressAsGui(&XB_SERIAL_DefTask, 0);
+#endif	
+
+#endif
+
 
 #ifdef Serial1Board_BAUD
 
@@ -167,8 +216,54 @@ void XB_SERIAL_Setup()
 	board.Log("OK");
 }
 
+bool XB_Serial0_DoRX()
+{
+	int r = -1;
+	int sa = Serial.available();
+	if (sa > 0)
+	{
+		while (Serial.available() > 0)
+		{
+			r = Serial.read();
+			if (r < 0) break;
+			BUFFER_Write_UINT8(&XB_SERIAL0_RXBuf, (uint8_t)r);
+		}
+		return true;
+	}
+	return false;
+}
+
+#define FRAMETX_MAXSIZE 4096
+void XB_Serial0_DoTX()
+{
+	
+	int32_t sdtx = BUFFER_GetSizeData(&XB_SERIAL0_TXBuf);
+	while (sdtx > 0)
+	{
+		if (sdtx < FRAMETX_MAXSIZE)
+		{
+			uint8_t* PTR = BUFFER_GetReadPtr(&XB_SERIAL0_TXBuf);
+			size_t wr = Serial.write((const char*)PTR, sdtx);
+			BUFFER_Readed(&XB_SERIAL0_TXBuf, wr);
+			sdtx -= wr;
+			Serial.flush();
+		}
+		else
+		{
+			uint8_t* PTR = BUFFER_GetReadPtr(&XB_SERIAL0_TXBuf);
+			size_t wr = Serial.write((const char*)PTR, FRAMETX_MAXSIZE);
+			BUFFER_Readed(&XB_SERIAL0_TXBuf, FRAMETX_MAXSIZE);
+			sdtx -= FRAMETX_MAXSIZE;
+		}
+	}
+
+}
+
+
 uint32_t XB_SERIAL_DoLoop()
 {
+
+
 #ifdef Serial0Board_BAUD
 	if (XB_SERIAL0_UseGET == 0)
 	{
@@ -181,6 +276,33 @@ uint32_t XB_SERIAL_DoLoop()
 		if (XB_SERIAL0_RXBuf != NULL) board.freeandnull((void **)&XB_SERIAL0_RXBuf);
 	}	
 #endif
+#ifdef Serial0BoardBuf_BAUD
+	BUFFER_Handle(&XB_SERIAL0_RXBuf, 1000);
+	BUFFER_Handle(&XB_SERIAL0_TXBuf, 1000);
+
+	int sa = Serial.available();
+	int r=-1;
+	if (!XB_Serial0_DoRX())
+	{
+		if (XB_SERIAL0_UseGET == 0)
+		{
+			uint32_t sd = BUFFER_GetSizeData(&XB_SERIAL0_RXBuf);
+			if (sd > 0)
+			{
+				void* tmpbuf = board._malloc_psram(sd);
+				if (tmpbuf != NULL)
+				{
+					int32_t s = board.GetStream(tmpbuf, sd, &XB_SERIAL_DefTask, 0);
+					(void)s;
+				}
+				board.free(tmpbuf);
+			}
+		}
+
+		XB_Serial0_DoTX();
+	}
+#endif
+
 #ifdef Serial1Board_BAUD
 	if (XB_SERIAL1_UseGET == 0)
 	{
@@ -227,11 +349,15 @@ bool XB_SERIAL_DoMessage(TMessageBoard *Am)
 	{
 	case IM_GET_TASKNAME_STRING:
 		{
-			*(Am->Data.PointerString) = "SERIAL";
+			GET_TASKNAME("SERIAL");
 			return true;
 		}
 	case IM_GET_TASKSTATUS_STRING:
 		{
+#ifdef Serial0BoardBuf_BAUD
+		GET_TASKSTATUS_ADDSTR("S0(" + String(Serial0BoardBuf_BAUD) + ") ");
+		GET_TASKSTATUS_ADDSTR("MLTX(" + String(XB_SERIAL0_TXBuf.MaxLength) + ") ");
+#endif
 #ifdef Serial0Board_BAUD
 			*(Am->Data.PointerString) += "S0(" + String(Serial0Board_BAUD) + ")";
 #endif
@@ -251,8 +377,48 @@ bool XB_SERIAL_DoMessage(TMessageBoard *Am)
 		{
 			switch (Am->Data.StreamData.StreamAction)
 			{
+			case saDisableTX:
+			{
+#ifdef XB_GUI
+				GUI_ClearScreen();
+#endif
+				XB_SERIAL0_DisableTX = true;
+				res = true;
+				break;
+			}
+			case saEnableTX:
+			{
+				XB_SERIAL0_DisableTX = false;
+				res = true;
+				break;
+			}
 			case saGet:
 				{
+#ifdef Serial0BoardBuf_BAUD
+				if (Am->Data.StreamData.FromAddress == 0)
+				{
+					uint32_t sd = BUFFER_GetSizeData(&XB_SERIAL0_RXBuf);
+					uint32_t count = 0;
+					if (sd > 0)
+					{
+						uint8_t* PTR = BUFFER_GetReadPtr(&XB_SERIAL0_RXBuf);
+						for (uint32_t i = 0; i < sd; i++)
+						{
+							((uint8_t*)Am->Data.StreamData.Data)[i] = PTR[i];
+							count++;
+							if (count >= Am->Data.StreamData.Length) break;
+						}
+						Am->Data.StreamData.LengthResult = count;
+						BUFFER_Readed(&XB_SERIAL0_RXBuf, count);
+					}
+					else
+					{
+						Am->Data.StreamData.LengthResult = 0;
+					}
+					res = true;
+					break;
+				}
+#endif
 #ifdef Serial0Board_BAUD
 					if (Am->Data.StreamData.FromAddress == 0)
 					{
@@ -371,6 +537,30 @@ bool XB_SERIAL_DoMessage(TMessageBoard *Am)
 				}
 			case saPut:
 				{
+#ifdef Serial0BoardBuf_BAUD
+				if (Am->Data.StreamData.ToAddress == 0)
+				{
+					if (!XB_SERIAL0_DisableTX)
+					{
+						Am->Data.StreamData.LengthResult = 0;
+						for (uint32_t i = 0; i < Am->Data.StreamData.Length; i++)
+						{
+							if (!BUFFER_Write_UINT8(&XB_SERIAL0_TXBuf, ((uint8_t*)Am->Data.StreamData.Data)[i]))
+							{
+								XB_Serial0_DoTX();
+							}
+							Am->Data.StreamData.LengthResult++;
+						}
+					}
+					else
+					{
+						Am->Data.StreamData.LengthResult = Am->Data.StreamData.LengthResult;
+					}
+					res = true;
+					break;
+				}
+#endif
+
 #ifdef Serial0Board_BAUD
 					if (Am->Data.StreamData.ToAddress == 0)
 					{
@@ -430,6 +620,12 @@ bool XB_SERIAL_DoMessage(TMessageBoard *Am)
 				}
 			case saBeginUseGet:
 				{
+#ifdef Serial0BoardBuf_BAUD
+				if (Am->Data.StreamData.ToAddress == 0)
+				{
+					XB_SERIAL0_UseGET++;
+				}
+#endif
 #ifdef Serial0Board_BAUD
 					if (Am->Data.StreamData.ToAddress == 0)
 					{
@@ -459,6 +655,12 @@ bool XB_SERIAL_DoMessage(TMessageBoard *Am)
 				}
 			case saEndUseGet:
 				{
+#ifdef Serial0BoardBuf_BAUD
+				if (Am->Data.StreamData.ToAddress == 0)
+				{
+					if (XB_SERIAL0_UseGET > 0) XB_SERIAL0_UseGET--;
+				}
+#endif
 #ifdef Serial0Board_BAUD
 					if (Am->Data.StreamData.ToAddress == 0)
 					{
