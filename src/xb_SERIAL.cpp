@@ -348,351 +348,366 @@ bool XB_SERIAL_DoMessage(TMessageBoard *Am)
 	switch (Am->IDMessage)
 	{
 	case IM_GET_TASKNAME_STRING:
-		{
-			GET_TASKNAME("SERIAL");
-			return true;
-		}
+	{
+		GET_TASKNAME("SERIAL");
+		return true;
+	}
 	case IM_GET_TASKSTATUS_STRING:
-		{
+	{
 #ifdef Serial0BoardBuf_BAUD
 		GET_TASKSTATUS_ADDSTR("S0(" + String(Serial0BoardBuf_BAUD) + ") ");
 		GET_TASKSTATUS_ADDSTR("MLTX(" + String(XB_SERIAL0_TXBuf.MaxLength) + ") ");
 #endif
 #ifdef Serial0Board_BAUD
-			*(Am->Data.PointerString) += "S0(" + String(Serial0Board_BAUD) + ")";
+		* (Am->Data.PointerString) += "S0(" + String(Serial0Board_BAUD) + ")";
 #endif
 #ifdef Serial1Board_BAUD
-			*(Am->Data.PointerString) += ",S1(" + String(Serial1Board_BAUD) + ")";
+		* (Am->Data.PointerString) += ",S1(" + String(Serial1Board_BAUD) + ")";
 #endif
 #ifdef Serial2Board_BAUD
-			*(Am->Data.PointerString) += ",S2(" + String(Serial2Board_BAUD) + ")";
+		* (Am->Data.PointerString) += ",S2(" + String(Serial2Board_BAUD) + ")";
 #endif
 #ifdef SerialBluetooth
-			*(Am->Data.PointerString) += ",SBT10(" + String(board.DeviceName) + ")";
+		* (Am->Data.PointerString) += ",SBT10(" + String(board.DeviceName) + ")";
+#endif
+		res = true;
+		break;
+	}
+	case IM_STREAM:
+	{
+		switch (Am->Data.StreamData.StreamAction)
+		{
+		case saTaskStream:
+		{
+			res = true;
+			break;
+		}
+		case saDisableTX:
+		{
+#ifdef XB_GUI
+			GUI_ClearScreen();
+#endif
+			XB_SERIAL0_DisableTX = true;
+			res = true;
+			break;
+		}
+		case saEnableTX:
+		{
+			XB_SERIAL0_DisableTX = false;
+			res = true;
+			break;
+		}
+		case saStatusDisableTX:
+		{
+			res = XB_SERIAL0_DisableTX;
+			break;
+		}
+		case saGet:
+		{
+#ifdef Serial0BoardBuf_BAUD
+			if (Am->Data.StreamData.FromAddress == 0)
+			{
+				uint32_t sd = BUFFER_GetSizeData(&XB_SERIAL0_RXBuf);
+				uint32_t count = 0;
+				if (sd > 0)
+				{
+					uint8_t* PTR = BUFFER_GetReadPtr(&XB_SERIAL0_RXBuf);
+					for (uint32_t i = 0; i < sd; i++)
+					{
+						((uint8_t*)Am->Data.StreamData.Data)[i] = PTR[i];
+						count++;
+						if (count >= Am->Data.StreamData.Length) break;
+					}
+					Am->Data.StreamData.LengthResult = count;
+					BUFFER_Readed(&XB_SERIAL0_RXBuf, count);
+				}
+				else
+				{
+					Am->Data.StreamData.LengthResult = 0;
+				}
+				res = true;
+				break;
+			}
+#endif
+#ifdef Serial0Board_BAUD
+			if (Am->Data.StreamData.FromAddress == 0)
+			{
+				int av = Serial.available();
+				if (av > 0)
+				{
+					int ch = 0;
+					uint32_t count = 0;
+					while (av > 0)
+					{
+						ch = Serial.read();
+						if (ch >= 0)
+						{
+							((uint8_t*)Am->Data.StreamData.Data)[count] = ch;
+							count++;
+						}
+						else break;
+						if (count >= Am->Data.StreamData.Length) break;
+						av = Serial.available();
+					}
+					Am->Data.StreamData.LengthResult = count;
+				}
+				else
+				{
+					Am->Data.StreamData.LengthResult = 0;
+				}
+				res = true;
+				break;
+			}
+#endif
+#ifdef Serial1Board_BAUD
+			if (Am->Data.StreamData.FromAddress == 1)
+			{
+				int av = Serial1.available();
+				if (av > 0)
+				{
+					uint8_t ch = 0;
+					uint8_t count = 0;
+					while (av > 0)
+					{
+						ch = (uint8_t)Serial1.read();
+						((uint8_t*)Am->Data.StreamData.Data)[count] = ch;
+						count++;
+						if (count >= Am->Data.StreamData.Length) break;
+						av = Serial1.available();
+					}
+					Am->Data.StreamData.LengthResult = count;
+				}
+				else
+				{
+					Am->Data.StreamData.LengthResult = 0;
+				}
+				res = true;
+				break;
+			}
+#endif
+#ifdef Serial2Board_BAUD
+			if (Am->Data.StreamData.FromAddress == 2)
+			{
+				int av = Serial2.available();
+				if (av > 0)
+				{
+					uint8_t ch = 0;
+					uint8_t count = 0;
+					while (av > 0)
+					{
+						ch = (uint8_t)Serial2.read();
+						((uint8_t*)Am->Data.StreamData.Data)[count] = ch;
+						count++;
+						if (count >= Am->Data.StreamData.Length) break;
+						av = Serial2.available();
+					}
+					Am->Data.StreamData.LengthResult = count;
+				}
+				else
+				{
+					Am->Data.StreamData.LengthResult = 0;
+				}
+				res = true;
+				break;
+			}
+#endif
+#ifdef SerialBluetooth
+			if (Am->Data.StreamData.FromAddress == 10)
+			{
+				int av = SerialBT.available();
+				if (av > 0)
+				{
+					int ch = 0;
+					uint32_t count = 0;
+					while (av > 0)
+					{
+						ch = SerialBT.read();
+						if (ch >= 0)
+						{
+							((uint8_t*)Am->Data.StreamData.Data)[count] = ch;
+							count++;
+						}
+						else break;
+						if (count >= Am->Data.StreamData.Length) break;
+						av = SerialBT.available();
+					}
+					Am->Data.StreamData.LengthResult = count;
+				}
+				else
+				{
+					Am->Data.StreamData.LengthResult = 0;
+				}
+				res = true;
+				break;
+			}
+#endif
+
+			res = true;
+			break;
+		}
+		case saPut:
+		{
+#ifdef Serial0BoardBuf_BAUD
+			if (Am->Data.StreamData.ToAddress == 0)
+			{
+				if (!XB_SERIAL0_DisableTX)
+				{
+					Am->Data.StreamData.LengthResult = 0;
+					for (uint32_t i = 0; i < Am->Data.StreamData.Length; i++)
+					{
+						if (!BUFFER_Write_UINT8(&XB_SERIAL0_TXBuf, ((uint8_t*)Am->Data.StreamData.Data)[i]))
+						{
+							XB_Serial0_DoTX();
+						}
+						Am->Data.StreamData.LengthResult++;
+					}
+				}
+				else
+				{
+					Am->Data.StreamData.LengthResult = Am->Data.StreamData.LengthResult;
+				}
+				res = true;
+				break;
+			}
+#endif
+
+#ifdef Serial0Board_BAUD
+			if (Am->Data.StreamData.ToAddress == 0)
+			{
+				uint32_t last_Length = Am->Data.StreamData.Length;
+				uint8_t* last_Data = (uint8_t*)Am->Data.StreamData.Data;
+				uint32_t tick = SysTickCount;
+				Am->Data.StreamData.LengthResult = Serial.write((uint8_t*)Am->Data.StreamData.Data, Am->Data.StreamData.Length);
+
+				while (Am->Data.StreamData.LengthResult != Am->Data.StreamData.Length)
+				{
+					if (SysTickCount - tick > 1000)
+					{
+						break;
+					}
+					Serial.flush(true);
+					uint32_t P = (uint32_t)Am->Data.StreamData.Data;
+					P += Am->Data.StreamData.LengthResult;
+					Am->Data.StreamData.Data = (void*)P;
+					Am->Data.StreamData.Length -= Am->Data.StreamData.LengthResult;
+
+					Am->Data.StreamData.LengthResult = Serial.write((uint8_t*)Am->Data.StreamData.Data, Am->Data.StreamData.Length);
+				}
+				Am->Data.StreamData.Length = last_Length;
+				Am->Data.StreamData.LengthResult = last_Length;
+				Am->Data.StreamData.Data = (void*)last_Data;
+				Serial.flush(true);
+				res = true;
+				break;
+			}
+#endif
+#ifdef Serial1Board_BAUD
+			if (Am->Data.StreamData.ToAddress == 1)
+			{
+				Am->Data.StreamData.LengthResult = Serial1.write((uint8_t*)Am->Data.StreamData.Data, Am->Data.StreamData.Length);
+				res = true;
+				break;
+			}
+#endif
+#ifdef Serial2Board_BAUD
+			if (Am->Data.StreamData.ToAddress == 2)
+			{
+				Am->Data.StreamData.LengthResult = Serial2.write((uint8_t*)Am->Data.StreamData.Data, Am->Data.StreamData.Length);
+				res = true;
+				break;
+			}
+#endif
+#ifdef SerialBluetooth
+			if (Am->Data.StreamData.ToAddress == 10)
+			{
+				Am->Data.StreamData.LengthResult = SerialBT.write((uint8_t*)Am->Data.StreamData.Data, Am->Data.StreamData.Length);
+				res = true;
+				break;
+			}
 #endif
 			res = true;
 			break;
 		}
-	case IM_STREAM:
+		case saBeginUseGet:
 		{
-			switch (Am->Data.StreamData.StreamAction)
+#ifdef Serial0BoardBuf_BAUD
+			if (Am->Data.StreamData.ToAddress == 0)
 			{
-			case saDisableTX:
+				XB_SERIAL0_UseGET++;
+			}
+#endif
+#ifdef Serial0Board_BAUD
+			if (Am->Data.StreamData.ToAddress == 0)
 			{
-#ifdef XB_GUI
-				GUI_ClearScreen();
-#endif
-				XB_SERIAL0_DisableTX = true;
-				res = true;
-				break;
+				XB_SERIAL0_UseGET++;
 			}
-			case saEnableTX:
+#endif
+#ifdef Serial1Board_BAUD
+			if (Am->Data.StreamData.ToAddress == 1)
 			{
-				XB_SERIAL0_DisableTX = false;
-				res = true;
-				break;
+				XB_SERIAL1_UseGET++;
 			}
-			case saGet:
-				{
-#ifdef Serial0BoardBuf_BAUD
-				if (Am->Data.StreamData.FromAddress == 0)
-				{
-					uint32_t sd = BUFFER_GetSizeData(&XB_SERIAL0_RXBuf);
-					uint32_t count = 0;
-					if (sd > 0)
-					{
-						uint8_t* PTR = BUFFER_GetReadPtr(&XB_SERIAL0_RXBuf);
-						for (uint32_t i = 0; i < sd; i++)
-						{
-							((uint8_t*)Am->Data.StreamData.Data)[i] = PTR[i];
-							count++;
-							if (count >= Am->Data.StreamData.Length) break;
-						}
-						Am->Data.StreamData.LengthResult = count;
-						BUFFER_Readed(&XB_SERIAL0_RXBuf, count);
-					}
-					else
-					{
-						Am->Data.StreamData.LengthResult = 0;
-					}
-					res = true;
-					break;
-				}
-#endif
-#ifdef Serial0Board_BAUD
-					if (Am->Data.StreamData.FromAddress == 0)
-					{
-						int av = Serial.available();
-						if (av > 0)
-						{
-							int ch = 0;
-							uint32_t count = 0;
-							while (av > 0)
-							{
-								ch = Serial.read();
-								if (ch >= 0)
-								{
-									((uint8_t*)Am->Data.StreamData.Data)[count] = ch;
-									count++;
-								}
-								else break;
-								if (count >= Am->Data.StreamData.Length) break;
-								av = Serial.available();
-							}
-							Am->Data.StreamData.LengthResult = count;
-						}
-						else
-						{
-							Am->Data.StreamData.LengthResult = 0;
-						}
-						res = true;
-						break;
-					}
-#endif
-#ifdef Serial1Board_BAUD
-					if (Am->Data.StreamData.FromAddress == 1)
-					{
-						int av = Serial1.available();
-						if (av > 0)
-						{
-							uint8_t ch = 0;
-							uint8_t count = 0;
-							while (av > 0)
-							{
-								ch = (uint8_t)Serial1.read();
-								((uint8_t *)Am->Data.StreamData.Data)[count] = ch;
-								count++;
-								if (count >= Am->Data.StreamData.Length) break;
-								av = Serial1.available();
-							}
-							Am->Data.StreamData.LengthResult = count;
-						}
-						else
-						{
-							Am->Data.StreamData.LengthResult = 0;
-						}
-						res = true;
-						break;
-					}
 #endif
 #ifdef Serial2Board_BAUD
-					if (Am->Data.StreamData.FromAddress == 2)
-					{
-						int av = Serial2.available();
-						if (av > 0)
-						{
-							uint8_t ch = 0;
-							uint8_t count = 0;
-							while (av > 0)
-							{
-								ch = (uint8_t)Serial2.read();
-								((uint8_t *)Am->Data.StreamData.Data)[count] = ch;
-								count++;
-								if (count >= Am->Data.StreamData.Length) break;
-								av = Serial2.available();
-							}
-							Am->Data.StreamData.LengthResult = count;
-						}
-						else
-						{
-							Am->Data.StreamData.LengthResult = 0;
-						}
-						res = true;
-						break;
-					}
-#endif
-#ifdef SerialBluetooth
-					if (Am->Data.StreamData.FromAddress == 10)
-					{
-						int av = SerialBT.available();
-						if (av > 0)
-						{
-							int ch = 0;
-							uint32_t count = 0;
-							while (av > 0)
-							{
-								ch = SerialBT.read();
-								if (ch >= 0)
-								{
-									((uint8_t*)Am->Data.StreamData.Data)[count] = ch;
-									count++;
-								}
-								else break;
-								if (count >= Am->Data.StreamData.Length) break;
-								av = SerialBT.available();
-							}
-							Am->Data.StreamData.LengthResult = count;
-						}
-						else
-						{
-							Am->Data.StreamData.LengthResult = 0;
-						}
-						res = true;
-						break;
-					}
-#endif
-
-					res = true;
-					break;
-				}
-			case saPut:
-				{
-#ifdef Serial0BoardBuf_BAUD
-				if (Am->Data.StreamData.ToAddress == 0)
-				{
-					if (!XB_SERIAL0_DisableTX)
-					{
-						Am->Data.StreamData.LengthResult = 0;
-						for (uint32_t i = 0; i < Am->Data.StreamData.Length; i++)
-						{
-							if (!BUFFER_Write_UINT8(&XB_SERIAL0_TXBuf, ((uint8_t*)Am->Data.StreamData.Data)[i]))
-							{
-								XB_Serial0_DoTX();
-							}
-							Am->Data.StreamData.LengthResult++;
-						}
-					}
-					else
-					{
-						Am->Data.StreamData.LengthResult = Am->Data.StreamData.LengthResult;
-					}
-					res = true;
-					break;
-				}
-#endif
-
-#ifdef Serial0Board_BAUD
-					if (Am->Data.StreamData.ToAddress == 0)
-					{
-						uint32_t last_Length = Am->Data.StreamData.Length;
-						uint8_t *last_Data = (uint8_t*)Am->Data.StreamData.Data;
-						uint32_t tick = SysTickCount;
-						Am->Data.StreamData.LengthResult = Serial.write((uint8_t *)Am->Data.StreamData.Data, Am->Data.StreamData.Length);
-						
-						while (Am->Data.StreamData.LengthResult != Am->Data.StreamData.Length)
-						{
-							if (SysTickCount - tick > 1000)
-							{
-								break;
-							}
-							Serial.flush(true);
-							uint32_t P = (uint32_t)Am->Data.StreamData.Data;
-							P += Am->Data.StreamData.LengthResult;
-							Am->Data.StreamData.Data = (void *)P;
-							Am->Data.StreamData.Length -= Am->Data.StreamData.LengthResult;
-							
-							Am->Data.StreamData.LengthResult = Serial.write((uint8_t*)Am->Data.StreamData.Data, Am->Data.StreamData.Length);
-						}
-						Am->Data.StreamData.Length = last_Length;
-						Am->Data.StreamData.LengthResult = last_Length;
-						Am->Data.StreamData.Data = (void*)last_Data;
-						Serial.flush(true);
-						res = true;
-						break;
-					}
-#endif
-#ifdef Serial1Board_BAUD
-					if (Am->Data.StreamData.ToAddress == 1)
-					{
-						Am->Data.StreamData.LengthResult = Serial1.write((uint8_t *)Am->Data.StreamData.Data, Am->Data.StreamData.Length);
-						res = true;
-						break;
-					}
-#endif
-#ifdef Serial2Board_BAUD
-					if (Am->Data.StreamData.ToAddress == 2)
-					{
-						Am->Data.StreamData.LengthResult = Serial2.write((uint8_t *)Am->Data.StreamData.Data, Am->Data.StreamData.Length);
-						res = true;
-						break;
-					}
-#endif
-#ifdef SerialBluetooth
-					if (Am->Data.StreamData.ToAddress == 10)
-					{
-						Am->Data.StreamData.LengthResult = SerialBT.write((uint8_t*)Am->Data.StreamData.Data, Am->Data.StreamData.Length);
-						res = true;
-						break;
-					}
-#endif
-					res = true;
-					break;
-				}
-			case saBeginUseGet:
-				{
-#ifdef Serial0BoardBuf_BAUD
-				if (Am->Data.StreamData.ToAddress == 0)
-				{
-					XB_SERIAL0_UseGET++;
-				}
-#endif
-#ifdef Serial0Board_BAUD
-					if (Am->Data.StreamData.ToAddress == 0)
-					{
-						XB_SERIAL0_UseGET++;
-					}
-#endif
-#ifdef Serial1Board_BAUD
-					if (Am->Data.StreamData.ToAddress == 1)
-					{
-						XB_SERIAL1_UseGET++;
-					}
-#endif
-#ifdef Serial2Board_BAUD
-					if (Am->Data.StreamData.ToAddress == 2)
-					{
-						XB_SERIAL2_UseGET++;
-					}
-#endif
-#ifdef SerialBluetooth
-					if (Am->Data.StreamData.ToAddress == 10)
-					{
-						XB_SERIALBT_UseGET++;
-					}
-#endif
-					res = true;
-					break;
-				}
-			case saEndUseGet:
-				{
-#ifdef Serial0BoardBuf_BAUD
-				if (Am->Data.StreamData.ToAddress == 0)
-				{
-					if (XB_SERIAL0_UseGET > 0) XB_SERIAL0_UseGET--;
-				}
-#endif
-#ifdef Serial0Board_BAUD
-					if (Am->Data.StreamData.ToAddress == 0)
-					{
-						if (XB_SERIAL0_UseGET>0) XB_SERIAL0_UseGET--;
-					}
-#endif
-#ifdef Serial1Board_BAUD
-					if (Am->Data.StreamData.ToAddress == 1)
-					{
-						if (XB_SERIAL1_UseGET > 0) XB_SERIAL1_UseGET--;
-					}
-#endif
-#ifdef Serial2Board_BAUD
-					if (Am->Data.StreamData.ToAddress == 2)
-					{
-						if (XB_SERIAL2_UseGET > 0) XB_SERIAL2_UseGET--;
-					}
-#endif
-#ifdef SerialBluetooth
-					if (Am->Data.StreamData.ToAddress == 10)
-					{
-						if (XB_SERIALBT_UseGET > 0) XB_SERIALBT_UseGET--;
-					}
-#endif
-					res = true;
-					break;
-				}
+			if (Am->Data.StreamData.ToAddress == 2)
+			{
+				XB_SERIAL2_UseGET++;
 			}
+#endif
+#ifdef SerialBluetooth
+			if (Am->Data.StreamData.ToAddress == 10)
+			{
+				XB_SERIALBT_UseGET++;
+			}
+#endif
+			res = true;
 			break;
+		}
+		case saEndUseGet:
+		{
+#ifdef Serial0BoardBuf_BAUD
+			if (Am->Data.StreamData.ToAddress == 0)
+			{
+				if (XB_SERIAL0_UseGET > 0) XB_SERIAL0_UseGET--;
+			}
+#endif
+#ifdef Serial0Board_BAUD
+			if (Am->Data.StreamData.ToAddress == 0)
+			{
+				if (XB_SERIAL0_UseGET > 0) XB_SERIAL0_UseGET--;
+			}
+#endif
+#ifdef Serial1Board_BAUD
+			if (Am->Data.StreamData.ToAddress == 1)
+			{
+				if (XB_SERIAL1_UseGET > 0) XB_SERIAL1_UseGET--;
+			}
+#endif
+#ifdef Serial2Board_BAUD
+			if (Am->Data.StreamData.ToAddress == 2)
+			{
+				if (XB_SERIAL2_UseGET > 0) XB_SERIAL2_UseGET--;
+			}
+#endif
+#ifdef SerialBluetooth
+			if (Am->Data.StreamData.ToAddress == 10)
+			{
+				if (XB_SERIALBT_UseGET > 0) XB_SERIALBT_UseGET--;
+			}
+#endif
+			res = true;
+			break;
+		}
+		case saGetLocalAddress:
+		{
+			res = true;
+			break;
+		}
+		break;
 		}
 	default: break;
 	}
-
+	}
 	return res;
+
 }
