@@ -211,9 +211,7 @@ void XB_SERIAL_Setup()
 #endif	
 
 #endif
-
-	board.Log("Start...");
-	board.Log("OK");
+	
 }
 
 bool XB_Serial0_DoRX()

@@ -1,6 +1,6 @@
-<?xml version="1.0" encoding ="utf-8" ?>
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" >
-  <PropertyGroup Label="Globals" >
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
     <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
     <HasSharedItems>true</HasSharedItems>
     <ItemsProjectGuid>{22ae3057-e71f-4e0a-b5fa-f59e6c3e73d2}</ItemsProjectGuid>
@@ -21,9 +21,5 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="$(MSBuildThisFileDirectory)library.properties" />
-<Text Include="$(MSBuildThisFileDirectory)vs-readme.txt" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="$(MSBuildThisFileDirectory)xb_SERIAL.vcxitems" />
   </ItemGroup>
 </Project>
