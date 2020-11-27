@@ -19,7 +19,4 @@
   <ItemGroup>
     <ClInclude Include="$(MSBuildThisFileDirectory)src\xb_SERIAL.h" />
   </ItemGroup>
-  <ItemGroup>
-    <Text Include="$(MSBuildThisFileDirectory)library.properties" />
-  </ItemGroup>
 </Project>
