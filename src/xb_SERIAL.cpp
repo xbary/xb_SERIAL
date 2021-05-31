@@ -49,6 +49,7 @@ uint8_t XB_SERIALBT_UseGET;
 
 void XB_SERIAL_Setup()
 {
+
 #ifdef Serial0Board_BAUD
 
 #ifndef __riscv64
@@ -99,10 +100,10 @@ void XB_SERIAL_Setup()
 	XB_SERIAL0_RXBuf.SectorSize = 32;
 	XB_SERIAL0_TXBuf.SectorSize = 512;
 	XB_SERIAL0_TXBuf.AlarmMaxLength = 4096;
-	XB_SERIAL0_DisableTX = true;
+	XB_SERIAL0_DisableTX = false;
 
 #if defined(ESP32) || defined(ESP8266)
-#ifdef Serial0Board_UseDebugOutPut
+#ifdef Serial0BoardBuf_UseDebugOutPut
 	Serial.setDebugOutput(true);
 #else
 	Serial.setDebugOutput(false);
